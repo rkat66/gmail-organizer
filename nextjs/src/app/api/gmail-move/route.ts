@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
     }
 
     const system = `You are a Gmail organizer with Gmail MCP access.
-1. Call create_label with name "${labelName}" (ignore error if exists, capture label id).
-2. For each message id, call modify_message: add label "${labelName}", remove label "INBOX".
-Message IDs: ${messageIds.join(', ')}
-Return ONLY JSON: {"moved":${messageIds.length},"label":"${labelName}","errors":[]}`
+1. Call create_label with name "${labelName}" (ignore error if label already exists).
+2. For each thread id below, call label_thread to add the label "${labelName}" and remove "INBOX".
+Thread IDs: ${messageIds.join(', ')}
+Return ONLY JSON (no explanation, no markdown): {"moved":${messageIds.length},"label":"${labelName}","errors":[]}`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

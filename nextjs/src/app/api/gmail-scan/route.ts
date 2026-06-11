@@ -9,8 +9,9 @@ export async function POST(req: NextRequest) {
     if (!gmailToken) return NextResponse.json({ error: 'Gmail OAuth token required' }, { status: 400 })
 
     const system = `You are a Gmail organizer assistant with Gmail MCP access.
-Use the available MCP tools to fetch up to ${maxEmails} recent emails from the INBOX label.
-For each email, extract the sender domain from the From header (e.g. "foo@amazon.com" → "amazon.com").
+Use the search_threads tool with query "in:inbox" and pageSize ${maxEmails} to fetch recent inbox emails.
+Then use get_thread on each thread id to retrieve the From header.
+Extract the sender domain from each From header (e.g. "foo@amazon.com" → "amazon.com").
 After fetching, return ONLY this JSON (no explanation, no markdown, no code fences):
 {"domains":{"gmail.com":["id1","id2"],"amazon.com":["id3"]},"emails":[{"id":"id1","subject":"Subject","from":"x@gmail.com","domain":"gmail.com"}]}
 If you cannot find any emails, return: {"domains":{},"emails":[]}`
