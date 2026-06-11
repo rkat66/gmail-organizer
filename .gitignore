@@ -1,0 +1,5 @@
+.vercel
+.env*
+.claude/
+nextjs/.next/
+nextjs/node_modules/
