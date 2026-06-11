@@ -24,7 +24,7 @@ Return ONLY this JSON (no explanation, no markdown):
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 4096,
         system,
         messages: [{ role: 'user', content: 'Scan my Gmail inbox now.' }],
         mcp_servers: [{ type: 'url', url: GMAIL_MCP, name: 'gmail-mcp', authorization_token: gmailToken }],
@@ -44,7 +44,10 @@ Return ONLY this JSON (no explanation, no markdown):
       .join('')
 
     const match = text.match(/\{[\s\S]*\}/)
-    if (!match) return NextResponse.json({ error: 'No JSON in Claude response' }, { status: 500 })
+    if (!match) return NextResponse.json(
+      { error: `No JSON in Claude response (stop_reason: ${data.stop_reason}). Raw: ${text.slice(0, 500)}` },
+      { status: 500 }
+    )
 
     return NextResponse.json(JSON.parse(match[0]))
   } catch (e: unknown) {

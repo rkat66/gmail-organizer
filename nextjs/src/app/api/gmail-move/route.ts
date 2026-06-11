@@ -27,7 +27,7 @@ Return ONLY JSON: {"moved":${messageIds.length},"label":"${labelName}","errors":
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 4096,
         system,
         messages: [{ role: 'user', content: `Move ${messageIds.length} emails to label "${labelName}"` }],
         mcp_servers: [{ type: 'url', url: GMAIL_MCP, name: 'gmail-mcp', authorization_token: gmailToken }],
