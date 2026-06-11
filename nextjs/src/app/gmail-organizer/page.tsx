@@ -25,7 +25,6 @@ type StatusState = 'idle' | 'running' | 'done' | 'error'
 
 // ── Component ──────────────────────────────────────────────────
 export default function GmailOrganizerPage() {
-  const [apiKey, setApiKey]         = useState('')
   const [gmailToken, setGmailToken] = useState('')
   const [labelPrefix, setLabelPrefix] = useState('Domain')
   const [maxEmails, setMaxEmails]   = useState('30')
@@ -50,7 +49,6 @@ export default function GmailOrganizerPage() {
 
   // ── Scan ──
   async function scanInbox() {
-    if (!apiKey.trim()) { addLog('error', 'API key required — enter it above'); return }
     if (!gmailToken.trim()) { addLog('error', 'Gmail OAuth token required — enter it above'); return }
     setRunning(true)
     setDomains({}); setEmails([]); setMovedItems([])
@@ -64,7 +62,7 @@ export default function GmailOrganizerPage() {
       const res = await fetch('/api/gmail-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, gmailToken, maxEmails }),
+        body: JSON.stringify({ gmailToken, maxEmails }),
       })
       const result = await res.json()
       if (!res.ok || result.error) throw new Error(result.error || 'Scan failed')
@@ -112,7 +110,7 @@ export default function GmailOrganizerPage() {
         const res = await fetch('/api/gmail-move', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey, gmailToken, domain, messageIds: ids, labelName }),
+          body: JSON.stringify({ gmailToken, messageIds: ids, labelName }),
         })
         const result = await res.json()
         if (!res.ok || result.error) throw new Error(result.error)
@@ -155,25 +153,6 @@ export default function GmailOrganizerPage() {
             <h1 className={styles.h1}>Gmail Domain Organizer</h1>
             <p className={styles.headerSub}>next.js · gmail mcp · label automation</p>
           </div>
-        </div>
-
-        {/* API Key */}
-        <div className={styles.setupCard}>
-          <div className={styles.ctrlLabel}>Anthropic API Key</div>
-          <div className={styles.setupRow}>
-            <input
-              type="password"
-              className={styles.input}
-              value={apiKey}
-              onChange={e => setApiKey(e.target.value)}
-              placeholder="sk-ant-api03-..."
-              autoComplete="off"
-            />
-          </div>
-          <p className={styles.setupNote}>
-            Used only server-side in API routes — never exposed to the browser.{' '}
-            Or set <code>ANTHROPIC_API_KEY</code> in <code>.env.local</code> to skip this field.
-          </p>
         </div>
 
         {/* Gmail OAuth Token */}

@@ -1,55 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const GMAIL_MCP = 'https://gmailmcp.googleapis.com/mcp/v1'
+const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me'
 
 export async function POST(req: NextRequest) {
   try {
-    const { apiKey, gmailToken, domain, messageIds, labelName } = await req.json()
-    if (!apiKey) return NextResponse.json({ error: 'API key required' }, { status: 400 })
+    const { gmailToken, messageIds, labelName } = await req.json()
     if (!gmailToken) return NextResponse.json({ error: 'Gmail OAuth token required' }, { status: 400 })
-    if (!domain || !messageIds?.length || !labelName) {
-      return NextResponse.json({ error: 'domain, messageIds, labelName required' }, { status: 400 })
+    if (!messageIds?.length || !labelName) {
+      return NextResponse.json({ error: 'messageIds and labelName required' }, { status: 400 })
     }
 
-    const system = `You are a Gmail organizer with Gmail MCP access.
-1. Call create_label with name "${labelName}" (ignore error if label already exists).
-2. For each thread id below, call label_thread to add the label "${labelName}" and remove "INBOX".
-Thread IDs: ${messageIds.join(', ')}
-Return ONLY JSON (no explanation, no markdown): {"moved":${messageIds.length},"label":"${labelName}","errors":[]}`
+    const headers = { Authorization: `Bearer ${gmailToken}`, 'Content-Type': 'application/json' }
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'mcp-client-2025-11-20',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        system,
-        messages: [{ role: 'user', content: `Move ${messageIds.length} emails to label "${labelName}"` }],
-        mcp_servers: [{ type: 'url', url: GMAIL_MCP, name: 'gmail-mcp', authorization_token: gmailToken }],
-        tools: [{ type: 'mcp_toolset', mcp_server_name: 'gmail-mcp' }],
-      }),
-    })
+    // 1. Get or create label
+    const labelsRes = await fetch(`${GMAIL}/labels`, { headers })
+    if (!labelsRes.ok) {
+      const err = await labelsRes.json().catch(() => ({}))
+      return NextResponse.json({ error: err.error?.message || `Gmail API error ${labelsRes.status}` }, { status: labelsRes.status })
+    }
+    const { labels = [] } = await labelsRes.json()
+    let label = (labels as { id: string; name: string }[]).find(l => l.name === labelName)
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      return NextResponse.json({ error: err.error?.message || `HTTP ${res.status}` }, { status: res.status })
+    if (!label) {
+      const createRes = await fetch(`${GMAIL}/labels`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ name: labelName }),
+      })
+      if (!createRes.ok) {
+        const err = await createRes.json().catch(() => ({}))
+        return NextResponse.json({ error: err.error?.message || 'Failed to create label' }, { status: createRes.status })
+      }
+      label = await createRes.json()
     }
 
-    const data = await res.json()
-    const text = data.content
-      .filter((b: { type: string }) => b.type === 'text')
-      .map((b: { text: string }) => b.text)
-      .join('')
+    // 2. Apply label + remove INBOX for each message
+    const results = await Promise.allSettled(
+      (messageIds as string[]).map(id =>
+        fetch(`${GMAIL}/messages/${id}/modify`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ addLabelIds: [label!.id], removeLabelIds: ['INBOX'] }),
+        })
+      )
+    )
 
-    const match = text.match(/\{[\s\S]*\}/)
-    if (!match) return NextResponse.json({ error: 'No JSON in Claude response' }, { status: 500 })
+    const errors = results
+      .map((r, i) => r.status === 'rejected' ? messageIds[i] : null)
+      .filter(Boolean)
 
-    return NextResponse.json(JSON.parse(match[0]))
+    return NextResponse.json({ moved: messageIds.length - errors.length, label: labelName, errors })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error'
     return NextResponse.json({ error: msg }, { status: 500 })
