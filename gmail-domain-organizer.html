@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gmail Domain Organizer</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: #0a0e1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+
+    .container { max-width: 820px; margin: 0 auto; }
+
+    /* ── HEADER ── */
+    .header {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 28px; padding-bottom: 22px;
+      border-bottom: 1px solid #1e2d45;
+    }
+    .header-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .header h1 { font-size: 20px; font-weight: 600; color: #f1f5f9; letter-spacing: -0.4px; }
+    .header p  { font-size: 12px; color: #64748b; font-family: 'IBM Plex Mono', monospace; margin-top: 3px; }
+
+    /* ── API KEY SETUP ── */
+    .setup-card {
+      background: #111827; border: 1px solid #2d3f5a;
+      border-radius: 10px; padding: 16px 18px; margin-bottom: 20px;
+    }
+    .setup-card .label {
+      font-size: 11px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.8px;
+      font-family: 'IBM Plex Mono', monospace; margin-bottom: 8px;
+    }
+    .setup-row { display: flex; gap: 10px; }
+    .setup-row input {
+      flex: 1; background: #0a0e1a; border: 1px solid #1e2d45;
+      border-radius: 7px; color: #e2e8f0; padding: 9px 12px;
+      font-size: 13px; font-family: 'IBM Plex Mono', monospace; outline: none;
+    }
+    .setup-row input:focus { border-color: #3b82f6; }
+    .setup-note { font-size: 11px; color: #475569; margin-top: 7px; font-family: 'IBM Plex Mono', monospace; }
+    .setup-note a { color: #3b82f6; text-decoration: none; }
+
+    /* ── STATUS BAR ── */
+    .status-bar {
+      background: #111827; border: 1px solid #1e2d45;
+      border-radius: 8px; padding: 10px 14px; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 9px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .dot.idle    { background: #475569; }
+    .dot.running { background: #22c55e; animation: pulse 1s infinite; }
+    .dot.done    { background: #3b82f6; }
+    .dot.error   { background: #ef4444; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .status-text { flex: 1; color: #94a3b8; }
+    .status-text strong { color: #e2e8f0; }
+
+    /* ── PROGRESS BAR ── */
+    .progress-wrap { height: 3px; background: #1e2d45; border-radius: 2px; margin-bottom: 18px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg,#3b82f6,#60a5fa); border-radius: 2px; transition: width .4s ease; width: 0; }
+
+    /* ── CONTROLS ── */
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+    .ctrl-card { background: #111827; border: 1px solid #1e2d45; border-radius: 10px; padding: 14px; }
+    .ctrl-label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; font-family: 'IBM Plex Mono', monospace; margin-bottom: 8px; }
+    .ctrl-card input, .ctrl-card select {
+      width: 100%; background: #0a0e1a; border: 1px solid #1e2d45;
+      border-radius: 6px; color: #e2e8f0; padding: 8px 10px;
+      font-size: 13px; font-family: 'IBM Plex Sans', sans-serif; outline: none;
+    }
+    .ctrl-card input:focus, .ctrl-card select:focus { border-color: #3b82f6; }
+
+    /* ── ACTIONS ── */
+    .actions { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      cursor: pointer; border: none; font-family: 'IBM Plex Sans', sans-serif;
+      transition: all .15s; display: flex; align-items: center; gap: 7px;
+    }
+    .btn-primary  { background: #3b82f6; color: #fff; }
+    .btn-primary:hover:not(:disabled)  { background: #2563eb; }
+    .btn-secondary { background: #1e2d45; color: #94a3b8; border: 1px solid #2d3f5a; }
+    .btn-secondary:hover:not(:disabled){ background: #243450; color: #e2e8f0; }
+    .btn-danger   { background: transparent; color: #ef4444; border: 1px solid #2d1f1f; }
+    .btn-danger:hover:not(:disabled)   { background: #1a0f0f; }
+    .btn:disabled { opacity: .38; cursor: not-allowed; }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      font-size: 11px; font-weight: 600; color: #475569;
+      text-transform: uppercase; letter-spacing: 1px;
+      font-family: 'IBM Plex Mono', monospace;
+      margin-bottom: 10px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .badge { background: #1e2d45; color: #64748b; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    .badge.blue  { background: #1e3a5f; color: #60a5fa; }
+    .badge.green { background: #14291f; color: #4ade80; }
+
+    /* ── LOG ── */
+    .log-box {
+      background: #080c14; border: 1px solid #1e2d45; border-radius: 10px;
+      padding: 14px; margin-bottom: 20px; height: 170px; overflow-y: auto;
+      font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.75;
+    }
+    .log-box::-webkit-scrollbar { width: 5px; }
+    .log-box::-webkit-scrollbar-thumb { background: #1e2d45; border-radius: 3px; }
+    .log-line { display: flex; gap: 10px; }
+    .log-time { color: #334155; flex-shrink: 0; }
+    .c-info    { color: #60a5fa; }
+    .c-success { color: #4ade80; }
+    .c-warn    { color: #fbbf24; }
+    .c-error   { color: #f87171; }
+    .c-dim     { color: #475569; }
+
+    /* ── DOMAIN GRID ── */
+    .domain-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); gap: 8px; margin-bottom: 22px; }
+    .domain-card {
+      background: #111827; border: 1px solid #1e2d45; border-radius: 8px;
+      padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .domain-name { font-size: 13px; color: #94a3b8; font-family: 'IBM Plex Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 135px; }
+    .domain-count { font-size: 20px; font-weight: 600; color: #3b82f6; font-family: 'IBM Plex Mono', monospace; flex-shrink: 0; }
+
+    /* ── MOVED LIST ── */
+    .moved-list { background: #111827; border: 1px solid #1e2d45; border-radius: 10px; overflow: hidden; }
+    .moved-item {
+      display: grid; grid-template-columns: 1fr auto auto; gap: 10px;
+      align-items: center; padding: 10px 14px; border-bottom: 1px solid #0f1825;
+      font-size: 12px; animation: slideIn .25s ease;
+    }
+    .moved-item:last-child { border-bottom: none; }
+    @keyframes slideIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+    .moved-subject { color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .moved-domain  { font-family: 'IBM Plex Mono', monospace; color: #475569; font-size: 11px; white-space: nowrap; }
+    .moved-label   { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #3b82f6; background: #1e3a5f; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+
+    .empty { text-align: center; padding: 32px; color: #334155; font-size: 13px; font-family: 'IBM Plex Mono', monospace; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-icon">📬</div>
+    <div>
+      <h1>Gmail Domain Organizer</h1>
+      <p>standalone · gmail mcp · label automation</p>
+    </div>
+  </div>
+
+  <!-- API KEY -->
+  <div class="setup-card">
+    <div class="label">Anthropic API Key</div>
+    <div class="setup-row">
+      <input type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off" />
+    </div>
+    <div class="setup-note">
+      Your key is used only in this browser tab and never stored.
+      Get one at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.
+      Gmail MCP must be connected on your Anthropic account.
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="status-bar">
+    <div class="dot idle" id="statusDot"></div>
+    <span class="status-text" id="statusText"><strong>Ready</strong> — enter API key and scan inbox</span>
+    <span class="badge blue" id="totalBadge" style="display:none"></span>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap"><div class="progress-fill" id="progress"></div></div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="ctrl-card">
+      <div class="ctrl-label">Label Prefix</div>
+      <input type="text" id="labelPrefix" value="Domain" />
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-label">Max Emails to Scan</div>
+      <select id="maxEmails">
+        <option value="20">20 emails</option>
+        <option value="30" selected>30 emails</option>
+        <option value="50">50 emails</option>
+        <option value="100">100 emails</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions">
+    <button class="btn btn-primary" id="btnScan" onclick="scanInbox()">🔍 Scan Inbox</button>
+    <button class="btn btn-secondary" id="btnMove" onclick="moveAll()" disabled>📁 Move to Domain Labels</button>
+    <button class="btn btn-danger" onclick="resetAll()">↺ Reset</button>
+  </div>
+
+  <!-- LOG -->
+  <div class="section-title">
+    <span>Activity Log</span>
+    <span class="badge" id="logCount">0 lines</span>
+  </div>
+  <div class="log-box" id="logBox"><div class="c-dim">// awaiting first run...</div></div>
+
+  <!-- DOMAINS -->
+  <div id="domainSection" style="display:none">
+    <div class="section-title">
+      <span>Domains Found</span>
+      <span class="badge blue" id="domainBadge"></span>
+    </div>
+    <div class="domain-grid" id="domainGrid"></div>
+  </div>
+
+  <!-- MOVED -->
+  <div id="movedSection" style="display:none">
+    <div class="section-title">
+      <span>Moved Emails</span>
+      <span class="badge green" id="movedBadge"></span>
+    </div>
+    <div class="moved-list" id="movedList"></div>
+  </div>
+
+  <div class="empty" id="emptyState">// scan inbox to discover domains → then move to labels</div>
+</div>
+
+<script>
+  const GMAIL_MCP = "https://gmailmcp.googleapis.com/mcp/v1";
+  let domains = {}, emails = [], movedItems = [], running = false;
+
+  const $ = id => document.getElementById(id);
+
+  function ts() {
+    return new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+
+  function log(type, msg) {
+    const box = $('logBox');
+    if (box.querySelector('.c-dim')?.textContent.startsWith('//')) box.innerHTML = '';
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = `<span class="log-time">${ts()}</span><span class="c-${type}">${escHtml(msg)}</span>`;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+    $('logCount').textContent = box.children.length + ' lines';
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function setProgress(pct) { $('progress').style.width = pct + '%'; }
+
+  function setStatus(state, text) {
+    const dot = $('statusDot');
+    dot.className = 'dot ' + state;
+    $('statusText').innerHTML = text;
+  }
+
+  function setRunning(val) {
+    running = val;
+    $('btnScan').disabled = val;
+    $('btnMove').disabled = val || !Object.keys(domains).length;
+  }
+
+  async function callClaude(userMsg, systemPrompt) {
+    const apiKey = $('apiKey').value.trim();
+    if (!apiKey) throw new Error('API key required — enter it above');
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'mcp-client-2025-04-04' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMsg }],
+        mcp_servers: [{ type: 'url', url: GMAIL_MCP, name: 'gmail-mcp' }]
+      })
+    });
+    if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error?.message || `HTTP ${res.status}`); }
+    const data = await res.json();
+    const text = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON in response');
+    return JSON.parse(match[0]);
+  }
+
+  async function scanInbox() {
+    setRunning(true);
+    domains = {}; emails = []; movedItems = [];
+    $('domainSection').style.display = 'none';
+    $('movedSection').style.display = 'none';
+    $('emptyState').style.display = 'none';
+    setProgress(10);
+    setStatus('running', '<strong>Scanning</strong> inbox via Gmail MCP...');
+    log('info', 'Initiating Gmail MCP connection...');
+    const max = $('maxEmails').value;
+
+    const SYSTEM = `You are a Gmail organizer assistant with Gmail MCP access.
+Use list_messages to get up to ${max} recent INBOX emails.
+Extract sender domain from each From header.
+Return ONLY this JSON (no explanation, no markdown):
+{"domains":{"gmail.com":["id1","id2"],"amazon.com":["id3"]},"emails":[{"id":"id1","subject":"Subject","from":"x@gmail.com","domain":"gmail.com"}]}`;
+
+    try {
+      log('info', `Fetching up to ${max} messages from INBOX...`);
+      setProgress(35);
+      const result = await callClaude('Scan my Gmail inbox now.', SYSTEM);
+      setProgress(75);
+      if (!result.domains) throw new Error('Invalid scan response — no domains key');
+      domains = result.domains;
+      emails  = result.emails || [];
+      const dc = Object.keys(domains).length;
+      const ec = emails.length;
+      setProgress(100);
+      log('success', `Found ${ec} emails across ${dc} domain${dc!==1?'s':''}`);
+      Object.entries(domains).sort((a,b)=>b[1].length-a[1].length).forEach(([d,ids])=>{
+        log('dim', `  ${d}: ${ids.length} message${ids.length!==1?'s':''}`);
+      });
+      setStatus('done', `<strong>Scan complete</strong> — ${ec} emails, ${dc} domains`);
+      renderDomains();
+      $('totalBadge').textContent = ec + ' emails';
+      $('totalBadge').style.display = '';
+      $('btnMove').disabled = false;
+    } catch(e) {
+      log('error', 'Scan failed: ' + e.message);
+      setStatus('error', '<strong>Error:</strong> ' + escHtml(e.message));
+      $('emptyState').style.display = 'block';
+    } finally {
+      setRunning(false);
+      setTimeout(()=>setProgress(0), 1500);
+    }
+  }
+
+  async function moveAll() {
+    const domainList = Object.entries(domains);
+    if (!domainList.length) { log('warn','No domains found — run scan first'); return; }
+    setRunning(true);
+    setStatus('running', '<strong>Moving emails</strong> to domain labels...');
+    log('info', `Starting move for ${domainList.length} domain${domainList.length!==1?'s':''}...`);
+    const prefix = $('labelPrefix').value.trim() || 'Domain';
+    let total = 0;
+
+    for (let i = 0; i < domainList.length; i++) {
+      const [domain, ids] = domainList[i];
+      const labelName = `${prefix}/${domain}`;
+      setProgress(Math.round(((i + 0.5) / domainList.length) * 100));
+      log('info', `Processing label: ${labelName} (${ids.length} email${ids.length!==1?'s':''})`);
+
+      const SYSTEM = `You are a Gmail organizer with Gmail MCP access.
+1. Call create_label with name "${labelName}" (ignore error if exists, capture label id).
+2. For each message id, call modify_message: add label "${labelName}", remove label "INBOX".
+Message IDs: ${ids.join(', ')}
+Return ONLY JSON: {"moved":${ids.length},"label":"${labelName}","errors":[]}`;
+
+      try {
+        const result = await callClaude(`Move ${ids.length} emails to label "${labelName}"`, SYSTEM);
+        const moved = result.moved || ids.length;
+        total += moved;
+        const domEmails = emails.filter(e=>e.domain===domain);
+        movedItems.push(...domEmails.map(e=>({...e, label: labelName})));
+        log('success', `✓ ${labelName} — moved ${moved} email${moved!==1?'s':''}`);
+        renderMoved();
+      } catch(e) {
+        log('error', `✗ ${domain}: ${e.message}`);
+      }
+    }
+
+    setProgress(100);
+    setStatus('done', `<strong>Done</strong> — ${total} emails organized into domain labels`);
+    log('success', `Workflow complete. ${total} total emails moved.`);
+    setRunning(false);
+    setTimeout(()=>setProgress(0), 1500);
+  }
+
+  function renderDomains() {
+    const grid = $('domainGrid');
+    grid.innerHTML = '';
+    const sorted = Object.entries(domains).sort((a,b)=>b[1].length-a[1].length);
+    sorted.forEach(([d,ids])=>{
+      const card = document.createElement('div');
+      card.className = 'domain-card';
+      card.innerHTML = `<span class="domain-name" title="${escHtml(d)}">${escHtml(d)}</span><span class="domain-count">${ids.length}</span>`;
+      grid.appendChild(card);
+    });
+    $('domainBadge').textContent = sorted.length + ' domains';
+    $('domainSection').style.display = 'block';
+  }
+
+  function renderMoved() {
+    const list = $('movedList');
+    list.innerHTML = '';
+    const show = movedItems.slice(0,50);
+    show.forEach(item=>{
+      const row = document.createElement('div');
+      row.className = 'moved-item';
+      row.innerHTML = `
+        <span class="moved-subject">${escHtml(item.subject||'(no subject)')}</span>
+        <span class="moved-domain">${escHtml(item.domain)}</span>
+        <span class="moved-label">${escHtml(item.label)}</span>`;
+      list.appendChild(row);
+    });
+    if (movedItems.length > 50) {
+      const more = document.createElement('div');
+      more.className = 'empty';
+      more.textContent = `+ ${movedItems.length-50} more`;
+      list.appendChild(more);
+    }
+    $('movedBadge').textContent = movedItems.length + ' moved';
+    $('movedSection').style.display = 'block';
+  }
+
+  function resetAll() {
+    domains = {}; emails = []; movedItems = [];
+    $('logBox').innerHTML = '<div class="c-dim">// awaiting first run...</div>';
+    $('logCount').textContent = '0 lines';
+    $('domainSection').style.display = 'none';
+    $('movedSection').style.display = 'none';
+    $('emptyState').style.display = 'block';
+    $('totalBadge').style.display = 'none';
+    $('btnMove').disabled = true;
+    setProgress(0);
+    setStatus('idle', '<strong>Ready</strong> — enter API key and scan inbox');
+  }
+</script>
+</body>
+</html>
