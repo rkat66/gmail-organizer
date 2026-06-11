@@ -9,10 +9,11 @@ export async function POST(req: NextRequest) {
     if (!gmailToken) return NextResponse.json({ error: 'Gmail OAuth token required' }, { status: 400 })
 
     const system = `You are a Gmail organizer assistant with Gmail MCP access.
-Use list_messages to get up to ${maxEmails} recent INBOX emails.
-Extract sender domain from each From header.
-Return ONLY this JSON (no explanation, no markdown):
-{"domains":{"gmail.com":["id1","id2"],"amazon.com":["id3"]},"emails":[{"id":"id1","subject":"Subject","from":"x@gmail.com","domain":"gmail.com"}]}`
+Use the available MCP tools to fetch up to ${maxEmails} recent emails from the INBOX label.
+For each email, extract the sender domain from the From header (e.g. "foo@amazon.com" → "amazon.com").
+After fetching, return ONLY this JSON (no explanation, no markdown, no code fences):
+{"domains":{"gmail.com":["id1","id2"],"amazon.com":["id3"]},"emails":[{"id":"id1","subject":"Subject","from":"x@gmail.com","domain":"gmail.com"}]}
+If you cannot find any emails, return: {"domains":{},"emails":[]}`
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
