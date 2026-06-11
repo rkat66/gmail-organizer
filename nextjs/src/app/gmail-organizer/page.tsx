@@ -227,6 +227,7 @@ export default function GmailOrganizerPage() {
               onChange={e => setMaxEmails(e.target.value)}
               disabled={running}
             >
+              <option value="3">3 emails</option>
               <option value="20">20 emails</option>
               <option value="30">30 emails</option>
               <option value="50">50 emails</option>
