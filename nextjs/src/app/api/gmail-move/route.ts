@@ -25,13 +25,27 @@ export async function POST(req: NextRequest) {
       const createRes = await fetch(`${GMAIL}/labels`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ name: labelName }),
+        body: JSON.stringify({
+          name: labelName,
+          labelListVisibility: 'labelShowIfUnread',
+          messageListVisibility: 'show',
+        }),
       })
       if (!createRes.ok) {
         const err = await createRes.json().catch(() => ({}))
         return NextResponse.json({ error: err.error?.message || 'Failed to create label' }, { status: createRes.status })
       }
       label = await createRes.json()
+    } else {
+      // Ensure existing label has correct visibility for IMAP (Outlook)
+      await fetch(`${GMAIL}/labels/${label.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          labelListVisibility: 'labelShowIfUnread',
+          messageListVisibility: 'show',
+        }),
+      })
     }
 
     // 2. Apply label + remove INBOX for each message
